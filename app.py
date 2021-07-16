@@ -168,7 +168,7 @@ def handle_message(event):
         staa="""描述：{}\n翻譯：{}\n單字：{}""".format(caption.text,ett,awew)
         
         #文字轉音檔
-        speech_key, service_region = "8dae930f17254a2c9cb0cfa4a8a71dcd", "westus2"
+        speech_key, service_region = "speech_key", "service_region"
         speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
 
         # Creates an audio configuration that points to an audio file.
