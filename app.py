@@ -14,7 +14,7 @@ from msrest.authentication import CognitiveServicesCredentials
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.textanalytics import TextAnalyticsClient
 import requests,uuid
-
+import azure.cognitiveservices.speech as speechsdk
 
 app = Flask(__name__)
 
@@ -28,6 +28,7 @@ line_bot_api = LineBotApi(channelAccessToken)
 handler = WebhookHandler(channelSecret)
 
 static_tmp_path = os.path.join( 'static', 'tmp')
+NGROK_URL = 'NGROK_UR'
 
 @app.route("/", methods=['POST'])
 def callback():
@@ -166,11 +167,42 @@ def handle_message(event):
         awew= ",".join(wew)
         staa="""描述：{}\n翻譯：{}\n單字：{}""".format(caption.text,ett,awew)
         
-        #google語音
-        stream_url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=en-US&client=tw-ob&ttsspeed=1&q={}'.format(caption.text)
-        stream_url=stream_url.replace(' ','%20')
+        #文字轉音檔
+        speech_key, service_region = "8dae930f17254a2c9cb0cfa4a8a71dcd", "westus2"
+        speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
+
+        # Creates an audio configuration that points to an audio file.
+        # Replace with your own audio filename.
+        audio_filename = './static/audio/%s.mp3'%(event.message.id)
+        audio_output = speechsdk.audio.AudioOutputConfig(filename=audio_filename)
+        speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_output)
+
+
+        text = caption.text
+        result = speech_synthesizer.speak_text_async(text).get()
         
-        SendMessages.append(AudioSendMessage(original_content_url=stream_url, duration=3000))
+
+
+  
+
+        # Checks result.
+        if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+            print("Speech synthesized to [{}] for text [{}]".format(audio_filename, text))
+        elif result.reason == speechsdk.ResultReason.Canceled:
+            cancellation_details = result.cancellation_details
+            print("Speech synthesis canceled: {}".format(cancellation_details.reason))
+            if cancellation_details.reason == speechsdk.CancellationReason.Error:
+                if cancellation_details.error_details:
+                    print("Error details: {}".format(cancellation_details.error_details))
+            print("Did you update the subscription info?")
+        with contextlib.closing(wave.open('./static/audio/%s.mp3'%(event.message.id),'r')) as f:
+            frames = f.getnframes()
+            rate = f.getframerate()
+            duration = 1000 * frames / float(rate)
+        
+        
+        SendMessages.append(AudioSendMessage(original_content_url='%s/static/audio/%s.mp3'%(NGROK_URL,event.message.id), duration=duration))
+        print('%s/static/audio/%s.mp3'%(NGROK_URL,event.message.id))
         SendMessages.append(TextSendMessage(text = staa))
         line_bot_api.reply_message(event.reply_token,SendMessages)
 
